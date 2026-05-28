@@ -90,6 +90,41 @@ describe("POST /api/convert", () => {
     expect(data.message).toMatch(/404/);
   });
 
+  it.each([
+    "http://localhost/anything",
+    "http://127.0.0.1/x",
+    "http://10.0.0.5/x",
+    "http://192.168.1.10/x",
+    "http://169.254.169.254/latest/meta-data/",
+    "http://172.16.0.1/x",
+    "http://example.local/x",
+  ])("blocks internal/loopback targets without issuing an upstream fetch: %s", async (url) => {
+    const fetchSpy = vi.fn(async () => new Response("", { status: 200 }));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const response = await POST(makeRequest({ url }));
+    const data = (await response.json()) as ConvertResponse;
+    expect("kind" in data && data.kind).toBe("fetch_failed");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects responses whose content-length exceeds the cap without buffering the body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response("ignored", {
+            status: 200,
+            headers: { "content-length": String(10 * 1024 * 1024) },
+          })
+      )
+    );
+
+    const response = await POST(makeRequest({ url: "https://example.com/huge" }));
+    const data = (await response.json()) as ConvertResponse;
+    expect("kind" in data && data.kind).toBe("fetch_failed");
+  });
+
   it("returns extract_failed when the page has no extractable body", async () => {
     vi.stubGlobal(
       "fetch",

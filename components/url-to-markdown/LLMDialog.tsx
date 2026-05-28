@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { buildLLMUrl, hostLabel, type LLMHost } from "@/lib/llmTransfer";
+import { buildLLMUrl, hostBaseUrl, hostLabel, type LLMHost } from "@/lib/llmTransfer";
 
 interface Props {
   host: LLMHost;
@@ -24,7 +24,9 @@ export function LLMDialog({ host, transferText, open, onOpenChange }: Props) {
   const label = hostLabel(host);
 
   async function handleCopyAndOpen() {
-    const window_ = window.open(host === "chatgpt" ? "https://chatgpt.com/" : "https://claude.ai/new", "_blank");
+    // window.open must run synchronously within the user-gesture event before
+    // any awaits — popup blockers reject opens that happen after a microtask.
+    const window_ = window.open(hostBaseUrl(host), "_blank");
     try {
       await navigator.clipboard.writeText(transferText);
       toast.success(`${label} 새 탭이 열렸고 텍스트가 클립보드에 복사되었습니다`);

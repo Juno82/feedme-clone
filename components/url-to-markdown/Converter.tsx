@@ -151,7 +151,7 @@ export function Converter() {
         />
       )}
 
-      {!result && !error && !isPending && (
+      {!result && !isPending && (
         <Card className="border-dashed">
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
             변환 결과가 여기에 표시됩니다
@@ -174,8 +174,12 @@ function ResultPanel({ result, promptState, onPromptChange }: ResultPanelProps) 
   const transferText = buildTransferText(promptState, result.markdown);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(result.markdown);
-    toast.success("Markdown이 복사되었습니다");
+    try {
+      await navigator.clipboard.writeText(result.markdown);
+      toast.success("Markdown이 복사되었습니다");
+    } catch {
+      toast.error("클립보드 복사에 실패했습니다");
+    }
   }
 
   function handleDownload() {

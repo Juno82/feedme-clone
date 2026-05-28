@@ -131,6 +131,9 @@ describe("Converter", () => {
     expect(
       screen.queryByRole("heading", { level: 2, name: "How React Works" })
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("변환 결과가 여기에 표시됩니다")
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "변환" })).toBeEnabled();
   });
 
@@ -151,6 +154,9 @@ describe("Converter", () => {
     await waitFor(() => {
       expect(screen.getByText("본문을 찾지 못했습니다.")).toBeInTheDocument();
     });
+    expect(
+      screen.getByText("변환 결과가 여기에 표시됩니다")
+    ).toBeInTheDocument();
   });
 
   it("falls back to the source URL when the page has no title", async () => {

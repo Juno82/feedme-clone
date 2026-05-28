@@ -12,6 +12,10 @@ export function buildTransferText(state: PromptState, markdown: string): string 
   return prompt ? `${prompt}\n\n${markdown}` : markdown;
 }
 
+export function hostBaseUrl(host: LLMHost): string {
+  return HOST_URLS[host];
+}
+
 export function buildLLMUrl(host: LLMHost, text: string): string {
   const url = new URL(HOST_URLS[host]);
   url.searchParams.set("q", text);
