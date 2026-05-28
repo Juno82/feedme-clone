@@ -10,8 +10,8 @@ const robotoSlab = Roboto_Slab({subsets:['latin'],variable:'--font-serif'});
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Kanban Todo",
-  description: "Kanban board application",
+  title: "URL → Markdown 변환기",
+  description: "웹 페이지를 본문 Markdown으로 변환해 LLM에 바로 전달합니다.",
 };
 
 export default function RootLayout({
