@@ -261,6 +261,69 @@ describe("Converter", () => {
     expect(text).toBe("# Hello\n\nWorld.");
   });
 
+  it("copy stays markdown-only even when a prompt preset is selected", async () => {
+    mockedConvertUrl.mockResolvedValue(
+      makeSuccess({ markdown: "# Body\n\nPlain text." })
+    );
+
+    const user = userEvent.setup();
+    const writeText = vi
+      .spyOn(window.navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+
+    render(
+      <>
+        <Converter />
+        <Toaster />
+      </>
+    );
+
+    await user.type(
+      screen.getByPlaceholderText(/https:\/\/example\.com/),
+      "https://example.com/article"
+    );
+    await user.click(screen.getByRole("button", { name: "변환" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: "요약해줘" })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("radio", { name: "요약해줘" }));
+    await user.click(screen.getByRole("button", { name: "복사" }));
+
+    expect(writeText).toHaveBeenCalledWith("# Body\n\nPlain text.");
+  });
+
+  it("download stays markdown-only even when a custom prompt is entered", async () => {
+    mockedConvertUrl.mockResolvedValue(makeSuccess({ markdown: "# Body\n\nText." }));
+
+    const createObjectURL = vi.fn(() => "blob:fake");
+    const revokeObjectURL = vi.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+
+    const user = userEvent.setup();
+    render(<Converter />);
+
+    await user.type(
+      screen.getByPlaceholderText(/https:\/\/example\.com/),
+      "https://example.com/article"
+    );
+    await user.click(screen.getByRole("button", { name: "변환" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: "직접 입력" })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("radio", { name: "직접 입력" }));
+    await user.type(
+      screen.getByLabelText("프롬프트 직접 입력"),
+      "Translate this please"
+    );
+    await user.click(screen.getByRole("button", { name: /\.md 다운로드/ }));
+
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    const text = await blob.text();
+    expect(text).toBe("# Body\n\nText.");
+  });
+
   it("renders the four action buttons after a successful conversion", async () => {
     mockedConvertUrl.mockResolvedValue(makeSuccess());
     const user = userEvent.setup();

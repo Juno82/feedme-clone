@@ -29,12 +29,15 @@ import {
   type ConvertError,
   type ConvertSuccess,
 } from "@/types/conversion";
+import { INITIAL_PROMPT_STATE, type PromptState } from "@/types/prompt";
+import { PromptSelector } from "./PromptSelector";
 
 export function Converter() {
   const [url, setUrl] = useState("");
   const [result, setResult] = useState<ConvertSuccess | null>(null);
   const [error, setError] = useState<ConvertError | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [promptState, setPromptState] = useState<PromptState>(INITIAL_PROMPT_STATE);
 
   const trimmedUrl = url.trim();
   const isEmpty = trimmedUrl.length === 0;
@@ -132,7 +135,13 @@ export function Converter() {
         </CardContent>
       </Card>
 
-      {result && <ResultPanel result={result} />}
+      {result && (
+        <ResultPanel
+          result={result}
+          promptState={promptState}
+          onPromptChange={setPromptState}
+        />
+      )}
 
       {!result && !error && !isPending && (
         <Card className="border-dashed">
@@ -145,7 +154,13 @@ export function Converter() {
   );
 }
 
-function ResultPanel({ result }: { result: ConvertSuccess }) {
+interface ResultPanelProps {
+  result: ConvertSuccess;
+  promptState: PromptState;
+  onPromptChange: (next: PromptState) => void;
+}
+
+function ResultPanel({ result, promptState, onPromptChange }: ResultPanelProps) {
   const headerTitle = result.title?.trim() || result.url;
 
   async function handleCopy() {
@@ -198,6 +213,10 @@ function ResultPanel({ result }: { result: ConvertSuccess }) {
             Claude로 열기
           </Button>
         </div>
+
+        <Separator />
+
+        <PromptSelector value={promptState} onChange={onPromptChange} />
 
         <Separator />
 
