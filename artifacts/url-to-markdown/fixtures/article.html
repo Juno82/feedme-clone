@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How React Works</title>
+<meta name="author" content="Jane Doe">
+<meta property="og:title" content="How React Works">
+<meta name="description" content="A deep dive into React's reconciliation algorithm.">
+</head>
+<body>
+<header>
+<nav>
+<a href="/">Home</a>
+<a href="/blog">Blog</a>
+</nav>
+</header>
+<main>
+<article>
+<h1>How React Works</h1>
+<p class="byline">By Jane Doe</p>
+<p>React renders user interfaces through a virtual representation of the DOM. When state changes, React reconciles the previous tree with the next tree and produces the smallest set of mutations required to bring the document in line.</p>
+<h2>Reconciliation</h2>
+<p>The reconciler walks the component tree top-down. Identical element types are diffed in place; differing types are unmounted and remounted. Keys disambiguate sibling order across renders.</p>
+<ul>
+<li>Diff by type and key</li>
+<li>Reuse hooks across renders</li>
+<li>Schedule effects after commit</li>
+</ul>
+<h2>Commit Phase</h2>
+<p>After reconciliation produces a work-in-progress tree, the commit phase applies the changes synchronously and then flushes effects asynchronously in a separate microtask.</p>
+</article>
+</main>
+<footer>
+<p>&copy; 2026 Example Corp</p>
+</footer>
+</body>
+</html>
