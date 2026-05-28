@@ -55,4 +55,57 @@ describe("POST /api/convert", () => {
     expect(data.markdown).toMatch(/Reconciliation/);
     expect(data.url).toBe("https://example.com/article");
   });
+
+  it("returns fetch_failed when the upstream fetch throws", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("network error");
+      })
+    );
+
+    const response = await POST(makeRequest({ url: "http://localhost:1" }));
+    expect(response.status).toBe(200);
+
+    const data = (await response.json()) as ConvertResponse;
+    if (!("kind" in data)) {
+      throw new Error("expected error response");
+    }
+    expect(data.kind).toBe("fetch_failed");
+    expect(data.message.length).toBeGreaterThan(0);
+  });
+
+  it("returns fetch_failed when the upstream responds with a non-2xx status", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("not found", { status: 404 }))
+    );
+
+    const response = await POST(makeRequest({ url: "https://example.com/missing" }));
+    const data = (await response.json()) as ConvertResponse;
+    if (!("kind" in data)) {
+      throw new Error("expected error response");
+    }
+    expect(data.kind).toBe("fetch_failed");
+    expect(data.message).toMatch(/404/);
+  });
+
+  it("returns extract_failed when the page has no extractable body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response("<html><head><title></title></head><body></body></html>", {
+            status: 200,
+          })
+      )
+    );
+
+    const response = await POST(makeRequest({ url: "https://example.com/empty" }));
+    const data = (await response.json()) as ConvertResponse;
+    if (!("kind" in data)) {
+      throw new Error("expected error response");
+    }
+    expect(data.kind).toBe("extract_failed");
+  });
 });

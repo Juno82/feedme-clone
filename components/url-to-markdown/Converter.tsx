@@ -38,6 +38,10 @@ export function Converter() {
   const isEmpty = trimmedUrl.length === 0;
   const isValidFormat = isEmpty ? true : isValidHttpUrl(trimmedUrl);
   const showFormatError = !isEmpty && !isValidFormat;
+  const inlineErrorMessage = showFormatError
+    ? "올바른 URL을 입력하세요 (http:// 또는 https://)."
+    : error?.message ?? null;
+  const showInlineError = inlineErrorMessage !== null;
 
   async function handleConvert() {
     if (!isValidFormat || isEmpty) return;
@@ -48,8 +52,10 @@ export function Converter() {
       const response = await convertUrl(trimmedUrl);
       if (isConvertError(response)) {
         setError(response);
+        setResult(null);
       } else {
         setResult(response);
+        setError(null);
       }
     } finally {
       setIsPending(false);
@@ -73,7 +79,7 @@ export function Converter() {
       <Card>
         <CardContent>
           <FieldGroup>
-            <Field data-invalid={showFormatError || undefined}>
+            <Field data-invalid={showInlineError || undefined}>
               <FieldLabel htmlFor="url-input">URL</FieldLabel>
               <div className="flex flex-col gap-2 md:flex-row">
                 <Input
@@ -81,9 +87,12 @@ export function Converter() {
                   type="url"
                   placeholder="https://example.com/article"
                   value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  aria-invalid={showFormatError || undefined}
-                  aria-describedby={showFormatError ? "url-error" : undefined}
+                  onChange={(event) => {
+                    setUrl(event.target.value);
+                    if (error) setError(null);
+                  }}
+                  aria-invalid={showInlineError || undefined}
+                  aria-describedby={showInlineError ? "url-error" : undefined}
                   className="md:flex-1"
                   autoComplete="off"
                   spellCheck={false}
@@ -113,10 +122,8 @@ export function Converter() {
                   </Button>
                 </div>
               </div>
-              {showFormatError && (
-                <FieldDescription id="url-error">
-                  올바른 URL을 입력하세요 (http:// 또는 https://).
-                </FieldDescription>
+              {showInlineError && (
+                <FieldDescription id="url-error">{inlineErrorMessage}</FieldDescription>
               )}
             </Field>
           </FieldGroup>

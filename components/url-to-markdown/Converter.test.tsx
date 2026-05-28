@@ -111,6 +111,47 @@ describe("Converter", () => {
     expect(screen.getByRole("button", { name: "변환" })).toBeEnabled();
   });
 
+  it("shows the inline error and preserves the URL when conversion fails", async () => {
+    mockedConvertUrl.mockResolvedValue({
+      kind: "fetch_failed",
+      message: "페이지를 가져올 수 없습니다.",
+    });
+    const user = userEvent.setup();
+    render(<Converter />);
+
+    const input = screen.getByPlaceholderText(/https:\/\/example\.com/) as HTMLInputElement;
+    await user.type(input, "https://example.com/article");
+    await user.click(screen.getByRole("button", { name: "변환" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("페이지를 가져올 수 없습니다.")).toBeInTheDocument();
+    });
+    expect(input.value).toBe("https://example.com/article");
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "How React Works" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "변환" })).toBeEnabled();
+  });
+
+  it("shows extract_failed messages inline and leaves the result area empty", async () => {
+    mockedConvertUrl.mockResolvedValue({
+      kind: "extract_failed",
+      message: "본문을 찾지 못했습니다.",
+    });
+    const user = userEvent.setup();
+    render(<Converter />);
+
+    await user.type(
+      screen.getByPlaceholderText(/https:\/\/example\.com/),
+      "https://example.com/empty"
+    );
+    await user.click(screen.getByRole("button", { name: "변환" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("본문을 찾지 못했습니다.")).toBeInTheDocument();
+    });
+  });
+
   it("renders the four action buttons after a successful conversion", async () => {
     mockedConvertUrl.mockResolvedValue(makeSuccess());
     const user = userEvent.setup();
