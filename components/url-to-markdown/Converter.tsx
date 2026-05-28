@@ -12,10 +12,16 @@ import {
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { convertUrl } from "@/services/convertUrl";
+import { isValidHttpUrl } from "@/lib/urlValidation";
 import {
   isConvertError,
   type ConvertError,
@@ -28,14 +34,18 @@ export function Converter() {
   const [error, setError] = useState<ConvertError | null>(null);
   const [isPending, setIsPending] = useState(false);
 
+  const trimmedUrl = url.trim();
+  const isEmpty = trimmedUrl.length === 0;
+  const isValidFormat = isEmpty ? true : isValidHttpUrl(trimmedUrl);
+  const showFormatError = !isEmpty && !isValidFormat;
+
   async function handleConvert() {
-    const trimmed = url.trim();
-    if (!trimmed) return;
+    if (!isValidFormat || isEmpty) return;
     setError(null);
     setResult(null);
     setIsPending(true);
     try {
-      const response = await convertUrl(trimmed);
+      const response = await convertUrl(trimmedUrl);
       if (isConvertError(response)) {
         setError(response);
       } else {
@@ -63,7 +73,7 @@ export function Converter() {
       <Card>
         <CardContent>
           <FieldGroup>
-            <Field>
+            <Field data-invalid={showFormatError || undefined}>
               <FieldLabel htmlFor="url-input">URL</FieldLabel>
               <div className="flex flex-col gap-2 md:flex-row">
                 <Input
@@ -72,6 +82,8 @@ export function Converter() {
                   placeholder="https://example.com/article"
                   value={url}
                   onChange={(event) => setUrl(event.target.value)}
+                  aria-invalid={showFormatError || undefined}
+                  aria-describedby={showFormatError ? "url-error" : undefined}
                   className="md:flex-1"
                   autoComplete="off"
                   spellCheck={false}
@@ -80,7 +92,7 @@ export function Converter() {
                   <Button
                     type="button"
                     onClick={handleConvert}
-                    disabled={!url.trim() || isPending}
+                    disabled={isEmpty || !isValidFormat || isPending}
                     aria-busy={isPending}
                   >
                     {isPending ? (
@@ -101,6 +113,11 @@ export function Converter() {
                   </Button>
                 </div>
               </div>
+              {showFormatError && (
+                <FieldDescription id="url-error">
+                  올바른 URL을 입력하세요 (http:// 또는 https://).
+                </FieldDescription>
+              )}
             </Field>
           </FieldGroup>
         </CardContent>

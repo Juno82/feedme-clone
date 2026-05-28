@@ -80,6 +80,37 @@ describe("Converter", () => {
     });
   });
 
+  it("disables the convert button when the input is empty (no error message)", () => {
+    render(<Converter />);
+    expect(screen.getByRole("button", { name: "변환" })).toBeDisabled();
+    expect(screen.queryByText(/올바른 URL/)).not.toBeInTheDocument();
+  });
+
+  it("shows an inline format error and keeps the button disabled for invalid input", async () => {
+    const user = userEvent.setup();
+    render(<Converter />);
+
+    await user.type(screen.getByPlaceholderText(/https:\/\/example\.com/), "not a url");
+
+    expect(screen.getByRole("button", { name: "변환" })).toBeDisabled();
+    expect(screen.getByText(/올바른 URL/)).toBeInTheDocument();
+  });
+
+  it("clears the format error and enables the button when a valid URL is entered", async () => {
+    const user = userEvent.setup();
+    render(<Converter />);
+
+    const input = screen.getByPlaceholderText(/https:\/\/example\.com/);
+    await user.type(input, "bogus");
+    expect(screen.getByText(/올바른 URL/)).toBeInTheDocument();
+
+    await user.clear(input);
+    await user.type(input, "https://example.com/post");
+
+    expect(screen.queryByText(/올바른 URL/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "변환" })).toBeEnabled();
+  });
+
   it("renders the four action buttons after a successful conversion", async () => {
     mockedConvertUrl.mockResolvedValue(makeSuccess());
     const user = userEvent.setup();
