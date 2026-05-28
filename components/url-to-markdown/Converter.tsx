@@ -33,6 +33,7 @@ import { INITIAL_PROMPT_STATE, type PromptState } from "@/types/prompt";
 import { buildTransferText, type LLMHost } from "@/lib/llmTransfer";
 import { PromptSelector } from "./PromptSelector";
 import { LLMDialog } from "./LLMDialog";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function Converter() {
   const [url, setUrl] = useState("");
@@ -49,6 +50,13 @@ export function Converter() {
     ? "올바른 URL을 입력하세요 (http:// 또는 https://)."
     : error?.message ?? null;
   const showInlineError = inlineErrorMessage !== null;
+
+  function handleClear() {
+    setUrl("");
+    setResult(null);
+    setError(null);
+    setPromptState(INITIAL_PROMPT_STATE);
+  }
 
   async function handleConvert() {
     if (!isValidFormat || isEmpty) return;
@@ -78,9 +86,7 @@ export function Converter() {
             웹 페이지를 본문 Markdown으로 변환합니다
           </p>
         </div>
-        <Button variant="outline" size="icon" aria-label="다크모드 토글" disabled>
-          <HugeiconsIcon icon={Loading03Icon} />
-        </Button>
+        <ThemeToggle />
       </header>
 
       <Card>
@@ -124,7 +130,7 @@ export function Converter() {
                       "변환"
                     )}
                   </Button>
-                  <Button type="button" variant="outline">
+                  <Button type="button" variant="outline" onClick={handleClear}>
                     지우기
                   </Button>
                 </div>

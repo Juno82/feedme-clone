@@ -324,6 +324,56 @@ describe("Converter", () => {
     expect(text).toBe("# Body\n\nText.");
   });
 
+  it("지우기 resets URL, result, error, and prompt selection", async () => {
+    mockedConvertUrl.mockResolvedValue(makeSuccess());
+    const user = userEvent.setup();
+    render(<Converter />);
+
+    const input = screen.getByPlaceholderText(/https:\/\/example\.com/) as HTMLInputElement;
+    await user.type(input, "https://example.com/article");
+    await user.click(screen.getByRole("button", { name: "변환" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { level: 2, name: "How React Works" })
+      ).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("radio", { name: "요약해줘" }));
+    expect(screen.getByRole("radio", { name: "요약해줘" })).toHaveAttribute(
+      "aria-checked",
+      "true"
+    );
+
+    await user.click(screen.getByRole("button", { name: "지우기" }));
+
+    expect(input.value).toBe("");
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "How React Works" })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "요약해줘" })).not.toBeInTheDocument();
+  });
+
+  it("지우기 clears the inline error message", async () => {
+    mockedConvertUrl.mockResolvedValue({
+      kind: "extract_failed",
+      message: "본문을 찾지 못했습니다.",
+    });
+    const user = userEvent.setup();
+    render(<Converter />);
+
+    await user.type(
+      screen.getByPlaceholderText(/https:\/\/example\.com/),
+      "https://example.com/empty"
+    );
+    await user.click(screen.getByRole("button", { name: "변환" }));
+    await waitFor(() => {
+      expect(screen.getByText("본문을 찾지 못했습니다.")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "지우기" }));
+    expect(screen.queryByText("본문을 찾지 못했습니다.")).not.toBeInTheDocument();
+  });
+
   it("renders the four action buttons after a successful conversion", async () => {
     mockedConvertUrl.mockResolvedValue(makeSuccess());
     const user = userEvent.setup();
