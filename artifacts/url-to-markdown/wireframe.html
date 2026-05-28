@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wireframe: URL → Markdown 변환기</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root {
+    --w-bg: #f5f5f5;
+    --w-border: #ccc;
+    --w-text: #555;
+    --w-muted: #aaa;
+    --w-fill: #eee;
+  }
+
+  * {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--w-text);
+  }
+
+  body { background: var(--w-bg); }
+
+  /* Screen nav */
+  nav { position: sticky; top: 0; z-index: 40; background: var(--w-bg); border-bottom: 1px solid var(--w-border); }
+  nav button { cursor: pointer; font-size: 13px; }
+  nav button:hover { background: var(--w-fill); border-radius: 4px; }
+  nav button.active { font-weight: bold; border-bottom: 2px solid var(--w-text); }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* Viewport toggle */
+  .vp-toggle button {
+    font-size: 12px; padding: 2px 8px;
+    border: 1px solid var(--w-border); cursor: pointer; background: white;
+  }
+  .vp-toggle button:first-child { border-radius: 4px 0 0 4px; }
+  .vp-toggle button:last-child { border-radius: 0 4px 4px 0; border-left: none; }
+  .vp-toggle button.active { background: var(--w-text); color: white; }
+
+  /* Mobile viewport frame */
+  body.viewport-mobile .screen-content {
+    max-width: 375px !important;
+    margin: 24px auto !important;
+    border: 2px solid var(--w-border);
+    border-radius: 24px;
+    min-height: 667px;
+    background: white;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    padding: 32px 16px !important;
+  }
+
+  /* Screen Notes */
+  .screen-notes {
+    background: #fffde7;
+    border-left: 3px solid #ffd54f;
+    padding: 12px 16px;
+    margin-top: 24px;
+    font-size: 13px;
+    border-radius: 0 4px 4px 0;
+  }
+  .screen-notes summary {
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 12px;
+    color: #b0a050;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .screen-notes p { margin: 6px 0 2px; color: #777; }
+  .screen-notes ul { margin: 4px 0 0 16px; padding: 0; color: #777; }
+  .screen-notes li { margin: 2px 0; }
+
+  /* Wireframe primitives */
+  .w-box { border: 1px solid var(--w-border); background: white; border-radius: 6px; }
+  .w-input { border: 1px solid var(--w-border); background: white; border-radius: 6px; padding: 10px 12px; font-size: 13px; }
+  .w-btn-primary {
+    background: var(--w-text); color: white !important;
+    border-radius: 6px; padding: 10px 16px; font-size: 13px;
+    border: 1px solid var(--w-text); cursor: pointer; font-weight: 600;
+  }
+  .w-btn-primary[disabled] { background: var(--w-muted); border-color: var(--w-muted); cursor: not-allowed; }
+  .w-btn-secondary {
+    background: white; border: 1px solid var(--w-border);
+    border-radius: 6px; padding: 10px 16px; font-size: 13px; cursor: pointer;
+  }
+  .w-btn-secondary:hover { background: var(--w-fill); }
+  .w-radio {
+    width: 14px; height: 14px; border: 1px solid var(--w-border);
+    border-radius: 50%; display: inline-block; vertical-align: middle;
+    background: white;
+  }
+  .w-radio.w-checked { background: var(--w-text); box-shadow: inset 0 0 0 3px white; border-color: var(--w-text); }
+  .w-section-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--w-muted); margin-bottom: 6px;
+  }
+  .w-divider { border-top: 1px dashed var(--w-border); margin: 16px 0; }
+  .w-error {
+    border-left: 3px solid var(--w-text);
+    background: var(--w-fill);
+    padding: 8px 12px;
+    font-size: 12px;
+    border-radius: 0 4px 4px 0;
+  }
+  .w-toast {
+    background: var(--w-text); color: white !important;
+    border-radius: 20px; padding: 8px 16px; font-size: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: inline-block;
+  }
+  .w-md-block {
+    background: var(--w-fill); border: 1px dashed var(--w-border);
+    border-radius: 4px; padding: 12px; font-size: 12px;
+    color: var(--w-text); line-height: 1.6;
+  }
+  .w-spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--w-fill); border-top-color: var(--w-text);
+    animation: spin 0.8s linear infinite; display: inline-block;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Dialog overlay */
+  .w-dialog-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.25);
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10;
+  }
+  body.viewport-desktop .w-dialog-backdrop { border-radius: 0; }
+  .w-dialog {
+    background: white; border: 1px solid var(--w-border);
+    border-radius: 8px; padding: 20px; max-width: 320px; width: 90%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+
+  /* Dark mode preview */
+  .w-dark-preview {
+    background: #1a1a1a;
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .w-dark-preview * { color: #ccc !important; }
+  .w-dark-preview .w-box,
+  .w-dark-preview .w-input { background: #2a2a2a !important; border-color: #444 !important; }
+  .w-dark-preview .w-btn-primary { background: #ccc !important; color: #1a1a1a !important; border-color: #ccc !important; }
+  .w-dark-preview .w-btn-secondary { background: #2a2a2a !important; border-color: #444 !important; }
+  .w-dark-preview .w-md-block { background: #2a2a2a !important; border-color: #444 !important; }
+</style>
+</head>
+<body class="p-0 m-0 viewport-mobile">
+
+<nav class="flex items-center gap-2 px-6 py-2">
+  <span class="text-xs" style="color:var(--w-muted)">wireframe</span>
+  <button id="nav-0" onclick="show(0)" class="px-2 py-1">Initial</button>
+  <button id="nav-1" onclick="show(1)" class="px-2 py-1">Result</button>
+  <button id="nav-2" onclick="show(2)" class="px-2 py-1">Loading</button>
+  <button id="nav-3" onclick="show(3)" class="px-2 py-1">URL 오류</button>
+  <button id="nav-4" onclick="show(4)" class="px-2 py-1">변환 실패</button>
+  <button id="nav-5" onclick="show(5)" class="px-2 py-1">결과 변형</button>
+  <button id="nav-6" onclick="show(6)" class="px-2 py-1">복사 피드백</button>
+  <button id="nav-7" onclick="show(7)" class="px-2 py-1">프롬프트 상태</button>
+  <button id="nav-8" onclick="show(8)" class="px-2 py-1">LLM 다이얼로그</button>
+  <button id="nav-9" onclick="show(9)" class="px-2 py-1">다크모드</button>
+  <div class="vp-toggle flex ml-auto">
+    <button id="vp-desktop" onclick="setViewport('desktop')">Desktop</button>
+    <button id="vp-mobile" onclick="setViewport('mobile')" class="active">Mobile</button>
+  </div>
+</nav>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- Screen 0: Initial (empty URL form)                          -->
+<!-- ─────────────────────────────────────────────────────────── -->
+<div id="screen-0" class="screen" data-scenario="scenario-2, scenario-10, scenario-11">
+  <div class="screen-content @container max-w-4xl mx-auto p-6">
+
+    <h2 class="text-lg font-bold mb-5" style="color:var(--w-muted); border-bottom:1px solid var(--w-border); padding-bottom:8px;">
+      Initial — 빈 입력 상태
+    </h2>
+
+    <!-- App header bar -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <div class="text-base font-bold" style="color:var(--w-text)">URL → Markdown 변환기</div>
+        <div class="text-xs mt-1" style="color:var(--w-muted)">웹 페이지를 본문 Markdown으로 변환합니다</div>
+      </div>
+      <button class="w-btn-secondary flex items-center gap-1.5">
+        <i data-lucide="moon" class="w-4 h-4"></i>
+        <span class="text-xs">다크모드</span>
+      </button>
+    </div>
+
+    <!-- URL input row -->
+    <div class="w-box p-4 mb-3">
+      <div class="w-section-label">URL</div>
+      <div class="flex flex-col @md:flex-row gap-2">
+        <input class="w-input flex-1" placeholder="https://example.com/article" value="" />
+        <div class="flex gap-2">
+          <button class="w-btn-primary flex-1 @md:flex-none" disabled>변환</button>
+          <button class="w-btn-secondary flex-1 @md:flex-none">지우기</button>
+        </div>
+      </div>
+      <div class="text-xs mt-2" style="color:var(--w-muted)">
+        붙여넣은 URL이 한 번에 하나 처리됩니다.
+      </div>
+    </div>
+
+    <!-- Empty result placeholder -->
+    <div class="w-box p-8 text-center" style="border-style:dashed;">
+      <div class="text-sm" style="color:var(--w-muted)">
+        <i data-lucide="file-text" class="w-8 h-8 inline-block mb-2"></i>
+        <div>변환 결과가 여기에 표시됩니다</div>
+      </div>
+    </div>
+
+    <div class="screen-notes">
+      <details open>
+        <summary>Screen Notes</summary>
+        <p><strong>트리거:</strong> 페이지 첫 진입 또는 "지우기" 직후</p>
+        <p><strong>인터랙션:</strong></p>
+        <ul>
+          <li>URL 입력란 포커스 → 사용자가 URL을 붙여넣는다</li>
+          <li>유효한 URL이면 "변환" 버튼이 활성화된다 (현재 상태: 빈 입력 → 비활성)</li>
+          <li>다크모드 토글 클릭 → 라이트/다크 전환 (상태는 새로고침 후에도 유지)</li>
+        </ul>
+        <p><strong>전환:</strong></p>
+        <ul>
+          <li>"변환" 클릭 → Loading → Result 화면</li>
+          <li>잘못된 입력 / 변환 실패 → 같은 화면 위에 인라인 에러 표시 (Error 시나리오)</li>
+        </ul>
+        <p style="margin-top:8px;"><strong>참고:</strong> 빈 입력은 인라인 에러를 띄우지 않는다 (아직 시도하지 않은 상태).</p>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- Screen 1: Result (성공한 변환 결과)                          -->
+<!-- ─────────────────────────────────────────────────────────── -->
+<div id="screen-1" class="screen" data-scenario="scenario-1, scenario-5, scenario-6, scenario-8, scenario-9">
+  <div class="screen-content @container max-w-4xl mx-auto p-6">
+
+    <h2 class="text-lg font-bold mb-5" style="color:var(--w-muted); border-bottom:1px solid var(--w-border); padding-bottom:8px;">
+      Result — 변환 성공 상태
+    </h2>
+
+    <!-- App header bar -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <div class="text-base font-bold" style="color:var(--w-text)">URL → Markdown 변환기</div>
+        <div class="text-xs mt-1" style="color:var(--w-muted)">웹 페이지를 본문 Markdown으로 변환합니다</div>
+      </div>
+      <button class="w-btn-secondary flex items-center gap-1.5">
+        <i data-lucide="moon" class="w-4 h-4"></i>
+        <span class="text-xs">다크모드</span>
+      </button>
+    </div>
+
+    <!-- URL input row (filled) -->
+    <div class="w-box p-4 mb-4">
+      <div class="w-section-label">URL</div>
+      <div class="flex flex-col @md:flex-row gap-2">
+        <input class="w-input flex-1" value="https://example.com/blog/how-react-works" />
+        <div class="flex gap-2">
+          <button class="w-btn-primary flex-1 @md:flex-none">변환</button>
+          <button class="w-btn-secondary flex-1 @md:flex-none">지우기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result section -->
+    <div class="w-box p-5">
+
+      <!-- Header (title + author) -->
+      <div class="mb-4">
+        <div class="w-section-label">결과 헤더</div>
+        <div class="text-base font-bold mb-1" style="color:var(--w-text)">How React Works</div>
+        <div class="text-xs" style="color:var(--w-muted)">by Dan Abramov</div>
+      </div>
+
+      <div class="w-divider"></div>
+
+      <!-- Action buttons -->
+      <div class="mb-4">
+        <div class="w-section-label">액션</div>
+        <div class="grid grid-cols-2 @md:flex @md:flex-wrap gap-2">
+          <button class="w-btn-secondary flex items-center justify-center gap-1.5">
+            <i data-lucide="copy" class="w-4 h-4"></i>
+            <span>복사</span>
+          </button>
+          <button class="w-btn-secondary flex items-center justify-center gap-1.5">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>.md 다운로드</span>
+          </button>
+          <button class="w-btn-secondary flex items-center justify-center gap-1.5">
+            <i data-lucide="external-link" class="w-4 h-4"></i>
+            <span>ChatGPT로 열기</span>
+          </button>
+          <button class="w-btn-secondary flex items-center justify-center gap-1.5">
+            <i data-lucide="external-link" class="w-4 h-4"></i>
+            <span>Claude로 열기</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="w-divider"></div>
+
+      <!-- Prompt selector -->
+      <div class="mb-4">
+        <div class="w-section-label">프롬프트 (LLM 전달 액션에만 적용)</div>
+        <div class="flex flex-col @md:flex-row @md:flex-wrap gap-3 @md:gap-4">
+          <label class="flex items-center gap-2 cursor-pointer text-sm">
+            <span class="w-radio"></span> 요약해줘
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer text-sm">
+            <span class="w-radio"></span> 한국어로 번역해줘
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer text-sm">
+            <span class="w-radio"></span> 쉽게 설명해줘
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer text-sm">
+            <span class="w-radio"></span> 직접 입력
+          </label>
+        </div>
+        <div class="text-xs mt-2" style="color:var(--w-muted)">
+          미선택 시: LLM 액션은 Markdown 본문만 전달
+        </div>
+      </div>
+
+      <div class="w-divider"></div>
+
+      <!-- Markdown body -->
+      <div>
+        <div class="w-section-label">Markdown 본문 (읽기 전용)</div>
+        <div class="w-md-block">
+          # How React Works<br>
+          <br>
+          React is a JavaScript library for building user interfaces.<br>
+          <br>
+          ## The Virtual DOM<br>
+          <br>
+          - Lightweight in-memory representation<br>
+          - Diffed against previous state<br>
+          - Patches applied to real DOM<br>
+          <br>
+          ## Component Model<br>
+          <br>
+          Components encapsulate state and rendering logic...
+        </div>
+      </div>
+
+    </div>
+
+    <div class="screen-notes">
+      <details open>
+        <summary>Screen Notes</summary>
+        <p><strong>트리거:</strong> Initial 화면에서 "변환" 클릭 후 추출 성공</p>
+        <p><strong>인터랙션:</strong></p>
+        <ul>
+          <li>URL 입력란은 그대로 노출 — 사용자가 다른 URL로 다시 변환할 수 있다</li>
+          <li>"복사" / ".md 다운로드" → 프롬프트와 무관하게 Markdown 본문만 처리</li>
+          <li>"ChatGPT로 열기" / "Claude로 열기" → 전달 방식 선택 다이얼로그 (시나리오 7 — 별도 화면 추가 예정)</li>
+          <li>프롬프트 라디오: 한 번에 하나만 선택, 다시 클릭하면 해제 (미선택 상태 가능)</li>
+          <li>"직접 입력" 선택 시: 라디오 그룹 아래에 텍스트 인풋이 펼쳐진다 (시나리오 9 화면 예정)</li>
+        </ul>
+        <p><strong>전환:</strong></p>
+        <ul>
+          <li>"지우기" 클릭 → Initial 화면 (URL/결과/프롬프트 모두 초기화, 다크모드는 유지)</li>
+          <li>LLM "열기" 클릭 → 전달 방식 다이얼로그 (시나리오 7)</li>
+        </ul>
+        <p style="margin-top:8px;"><strong>레이아웃 결정:</strong> "직접 입력"은 프리셋과 같은 라디오 그룹의 4번째 옵션 (한 번에 하나만 선택된다는 규칙을 시각적으로 강제). 선택 시 그 아래로 텍스트 인풋이 펼쳐진다.</p>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- Screen 2: Loading (변환 중)                                  -->
+<!-- ─────────────────────────────────────────────────────────── -->
+<div id="screen-2" class="screen" data-scenario="scenario-1">
+  <div class="screen-content @container max-w-4xl mx-auto p-6">
+
+    <h2 class="text-lg font-bold mb-5" style="color:var(--w-muted); border-bottom:1px solid var(--w-border); padding-bottom:8px;">
+      Loading — 변환 진행 중
+    </h2>
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <div class="text-base font-bold" style="color:var(--w-text)">URL → Markdown 변환기</div>
+        <div class="text-xs mt-1" style="color:var(--w-muted)">웹 페이지를 본문 Markdown으로 변환합니다</div>
+      </div>
+      <button class="w-btn-secondary flex items-center gap-1.5">
+        <i data-lucide="moon" class="w-4 h-4"></i>
+        <span class="text-xs">다크모드</span>
+      </button>
+    </div>
+
+    <div class="w-box p-4 mb-3">
+      <div class="w-section-label">URL</div>
+      <div class="flex flex-col @md:flex-row gap-2">
+        <input class="w-input flex-1" value="https://example.com/blog/how-react-works" />
+        <div class="flex gap-2">
+          <button class="w-btn-primary flex-1 @md:flex-none flex items-center justify-center gap-2" disabled>
+            <span class="w-spinner"></span>
+            <span>변환 중…</span>
+          </button>
+          <button class="w-btn-secondary flex-1 @md:flex-none">지우기</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-box p-8 text-center" style="border-style:dashed;">
+      <div class="text-sm" style="color:var(--w-muted)">
+        <span class="w-spinner"></span>
+        <span class="ml-2">페이지를 가져오는 중…</span>
+      </div>
+    </div>
+
+    <div class="screen-notes">
+      <details open>
+        <summary>Screen Notes</summary>
+        <p><strong>트리거:</strong> "변환" 클릭 직후 ~ 본문 추출 완료 전</p>
+        <p><strong>인터랙션:</strong></p>
+        <ul>
+          <li>"변환" 버튼은 비활성화 + 스피너 + "변환 중…" 라벨로 전환</li>
+          <li>URL 입력란은 편집 가능 (사용자가 잘못 붙여넣었으면 수정할 수 있게 — 단 진행 중인 요청에는 영향 없음)</li>
+          <li>"지우기"는 활성 상태 유지 (취소 의도)</li>
+        </ul>
+        <p><strong>전환:</strong></p>
+        <ul>
+          <li>성공 → Result 화면</li>
+          <li>실패 → 변환 실패 화면 (인라인 에러)</li>
+        </ul>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- Screen 3: URL 포맷 오류                                       -->
+<!-- ─────────────────────────────────────────────────────────── -->
+<div id="screen-3" class="screen" data-scenario="scenario-2">
+  <div class="screen-content @container max-w-4xl mx-auto p-6">
+
+    <h2 class="text-lg font-bold mb-5" style="color:var(--w-muted); border-bottom:1px solid var(--w-border); padding-bottom:8px;">
+      URL 오류 — 포맷 검증 실패
+    </h2>
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <div class="text-base font-bold" style="color:var(--w-text)">URL → Markdown 변환기</div>
+        <div class="text-xs mt-1" style="color:var(--w-muted)">웹 페이지를 본문 Markdown으로 변환합니다</div>
+      </div>
+      <button class="w-btn-secondary flex items-center gap-1.5">
+        <i data-lucide="moon" class="w-4 h-4"></i>
+        <span class="text-xs">다크모드</span>
+      </button>
+    </div>
+
+    <div class="w-box p-4 mb-3">
+      <div class="w-section-label">URL</div>
+      <div class="flex flex-col @md:flex-row gap-2">
+        <input class="w-input flex-1" value="not a url" style="border-color: var(--w-text);" />
+        <div class="flex gap-2">
+          <button class="w-btn-primary flex-1 @md:flex-none" disabled>변환</button>
+          <button class="w-btn-secondary flex-1 @md:flex-none">지우기</button>
+        </div>
+      </div>
+      <div class="w-error mt-2 flex items-center gap-2">
+        <i data-lucide="alert-circle" class="w-4 h-4"></i>
+        <span>올바른 URL을 입력하세요 (http:// 또는 https://로 시작)</span>
+      </div>
+    </div>
+
+    <div class="w-box p-8 text-center" style="border-style:dashed;">
+      <div class="text-sm" style="color:var(--w-muted)">
+        <i data-lucide="file-text" class="w-8 h-8 inline-block mb-2"></i>
+        <div>변환 결과가 여기에 표시됩니다</div>
+      </div>
+    </div>
+
+    <div class="screen-notes">
+      <details open>
+        <summary>Screen Notes</summary>
+        <p><strong>트리거:</strong> 사용자가 http/https 스킴이 아닌 텍스트를 입력하는 즉시 (실시간 검증)</p>
+        <p><strong>인터랙션:</strong></p>
+        <ul>
+          <li>"변환" 버튼은 비활성화 — 클릭 자체가 막힌다</li>
+          <li>인라인 에러 메시지는 입력란 바로 아래에 표시 (불변 규칙)</li>
+          <li>유효한 URL로 수정하면 에러가 사라지고 "변환"이 활성화된다</li>
+        </ul>
+        <p><strong>전환:</strong></p>
+        <ul>
+          <li>유효 URL 입력 → 같은 화면, 에러 해제 + 변환 활성화 (Initial과 유사한 상태)</li>
+        </ul>
+        <p style="margin-top:8px;"><strong>불변 규칙:</strong> 결과 영역에는 절대 에러를 띄우지 않는다 — 결과 영역은 성공만 표시.</p>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- Screen 4: 변환 실패 (가져오기 / 추출)                          -->
+<!-- ─────────────────────────────────────────────────────────── -->
+<div id="screen-4" class="screen" data-scenario="scenario-3">
+  <div class="screen-content @container max-w-4xl mx-auto p-6">
+
+    <h2 class="text-lg font-bold mb-5" style="color:var(--w-muted); border-bottom:1px solid var(--w-border); padding-bottom:8px;">
+      변환 실패 — 가져오기 / 본문 추출
+    </h2>
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <div class="text-base font-bold" style="color:var(--w-text)">URL → Markdown 변환기</div>
+        <div class="text-xs mt-1" style="color:var(--w-muted)">웹 페이지를 본문 Markdown으로 변환합니다</div>
+      </div>
+      <button class="w-btn-secondary flex items-center gap-1.5">
+        <i data-lucide="moon" class="w-4 h-4"></i>
+        <span class="text-xs">다크모드</span>
+      </button>
+    </div>
+
+    <!-- 변형 A: 가져오기 실패 -->
+    <div class="text-xs mb-1" style="color:var(--w-muted)">변형 A — 가져오기 실패 (네트워크/접근 불가)</div>
+    <div class="w-box p-4 mb-4">
+      <div class="w-section-label">URL</div>
+      <div class="flex flex-col @md:flex-row gap-2">
+        <input class="w-input flex-1" value="https://unreachable.example.com/page" />
+        <div class="flex gap-2">
+          <button class="w-btn-primary flex-1 @md:flex-none">변환</button>
+          <button class="w-btn-secondary flex-1 @md:flex-none">지우기</button>
+        </div>
+      </div>
+      <div class="w-error mt-2 flex items-center gap-2">
+        <i data-lucide="wifi-off" class="w-4 h-4"></i>
+        <span>페이지를 가져올 수 없습니다. URL을 확인하고 다시 시도하세요.</span>
+      </div>
+    </div>
+
+    <!-- 변형 B: 본문 추출 실패 -->
+    <div class="text-xs mb-1" style="color:var(--w-muted)">변형 B — 본문 추출 실패 (페이지는 받았으나 추출 불가)</div>
+    <div class="w-box p-4 mb-4">
+      <div class="w-section-label">URL</div>
+      <div class="flex flex-col @md:flex-row gap-2">
+        <input class="w-input flex-1" value="https://example.com/login" />
+        <div class="flex gap-2">
+          <button class="w-btn-primary flex-1 @md:flex-none">변환</button>
+          <button class="w-btn-secondary flex-1 @md:flex-none">지우기</button>
+        </div>
+      </div>
+      <div class="w-error mt-2 flex items-center gap-2">
+        <i data-lucide="file-x" class="w-4 h-4"></i>
+        <span>본문을 찾지 못했습니다. 다른 URL을 시도해 보세요.</span>
+      </div>
+    </div>
+
+    <div class="w-box p-8 text-center" style="border-style:dashed;">
+      <div class="text-sm" style="color:var(--w-muted)">
+        <i data-lucide="file-text" class="w-8 h-8 inline-block mb-2"></i>
+        <div>결과 영역 — 실패 시 비어 있음</div>
+      </div>
+    </div>
+
+    <div class="screen-notes">
+      <details open>
+        <summary>Screen Notes</summary>
+        <p><strong>트리거:</strong> 유효한 형식의 URL이지만 가져오기 / 본문 추출이 실패한 직후</p>
+        <p><strong>인터랙션:</strong></p>
+        <ul>
+          <li>URL 입력값은 보존된다 — 사용자가 즉시 수정·재시도 가능</li>
+          <li>"변환" 버튼은 다시 활성화되어 재시도 가능</li>
+          <li>"지우기" → Initial 화면으로</li>
+        </ul>
+        <p><strong>전환:</strong></p>
+        <ul>
+          <li>재시도 성공 → Result 화면</li>
+          <li>"지우기" 클릭 → Initial 화면</li>
+        </ul>
+        <p style="margin-top:8px;"><strong>불변 규칙:</strong> 에러 메시지는 입력란 바로 아래, 결과 영역은 비어 있는 상태로 유지.</p>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- Screen 5: 결과 변형 (메타데이터 누락)                          -->
+<!-- ─────────────────────────────────────────────────────────── -->
+<div id="screen-5" class="screen" data-scenario="scenario-4">
+  <div class="screen-content @container max-w-4xl mx-auto p-6">
+
+    <h2 class="text-lg font-bold mb-5" style="color:var(--w-muted); border-bottom:1px solid var(--w-border); padding-bottom:8px;">
+      결과 변형 — 메타데이터 누락 케이스
+    </h2>
+
+    <div class="text-xs mb-4" style="color:var(--w-muted)">
+      헤더는 추출된 항목만 표시. 제목이 없으면 원본 URL을 제목 자리에, 저자가 없으면 저자 줄 자체를 생략.
+    </div>
+
+    <div class="grid grid-cols-1 @md:grid-cols-3 gap-4">
+
+      <!-- 변형 A -->
+      <div class="w-box p-4">
+        <div class="w-section-label">A — 제목 없음 + 저자 있음</div>
+        <div class="text-sm font-bold mb-1 break-all" style="color:var(--w-text)">
+          https://example.com/blog/post
+        </div>
+        <div class="text-xs" style="color:var(--w-muted)">by Dan Abramov</div>
+        <div class="w-divider"></div>
+        <div class="w-md-block">
+          본문 텍스트가 정상 렌더링됩니다…
+        </div>
+      </div>
+
+      <!-- 변형 B -->
+      <div class="w-box p-4">
+        <div class="w-section-label">B — 제목 있음 + 저자 없음</div>
+        <div class="text-sm font-bold mb-1" style="color:var(--w-text)">
+          How React Works
+        </div>
+        <div class="text-xs italic" style="color:var(--w-muted)">(저자 줄 생략)</div>
+        <div class="w-divider"></div>
+        <div class="w-md-block">
+          본문 텍스트가 정상 렌더링됩니다…
+        </div>
+      </div>
+
+      <!-- 변형 C -->
+      <div class="w-box p-4">
+        <div class="w-section-label">C — 제목 없음 + 저자 없음</div>
+        <div class="text-sm font-bold mb-1 break-all" style="color:var(--w-text)">
+          https://example.com/anon
+        </div>
+        <div class="text-xs italic" style="color:var(--w-muted)">(저자 줄 생략)</div>
+        <div class="w-divider"></div>
+        <div class="w-md-block">
+          본문 텍스트가 정상 렌더링됩니다…
+        </div>
+      </div>
+
+    </div>
+
+    <div class="screen-notes">
+      <details open>
+        <summary>Screen Notes</summary>
+        <p><strong>트리거:</strong> 변환 성공 + defuddle이 제목/저자를 추출하지 못한 경우</p>
+        <p><strong>인터랙션:</strong> Result 화면과 동일 — 헤더만 다르게 표시</p>
+        <p><strong>전환:</strong> Result 화면과 동일</p>
+        <p style="margin-top:8px;"><strong>참고:</strong> 본문 자체가 없으면 시나리오 3(본문 추출 실패)로 처리. 본문은 있지만 메타가 없는 경우만 여기에 해당.</p>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- Screen 6: 복사 피드백                                          -->
+<!-- ─────────────────────────────────────────────────────────── -->
+<div id="screen-6" class="screen" data-scenario="scenario-5">
+  <div class="screen-content @container max-w-4xl mx-auto p-6">
+
+    <h2 class="text-lg font-bold mb-5" style="color:var(--w-muted); border-bottom:1px solid var(--w-border); padding-bottom:8px;">
+      복사 피드백 — "복사" 클릭 직후
+    </h2>
+
+    <div class="text-xs mb-4" style="color:var(--w-muted)">
+      "복사" 버튼이 잠시 텍스트를 바꿔 완료를 알리고, 동시에 토스트가 화면 상단(데스크톱) / 하단(모바일)에 떴다 사라진다.
+    </div>
+
+    <!-- Action row in copied state -->
+    <div class="w-box p-5">
+      <div class="mb-4">
+        <div class="w-section-label">결과 헤더</div>
+        <div class="text-base font-bold mb-1" style="color:var(--w-text)">How React Works</div>
+        <div class="text-xs" style="color:var(--w-muted)">by Dan Abramov</div>
+      </div>
+
+      <div class="w-divider"></div>
+
+      <div>
+        <div class="w-section-label">액션 — "복사"가 일시적으로 "복사됨"으로 전환</div>
+        <div class="grid grid-cols-2 @md:flex @md:flex-wrap gap-2">
+          <button class="w-btn-primary flex items-center justify-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>복사됨</span>
+          </button>
+          <button class="w-btn-secondary flex items-center justify-center gap-1.5">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>.md 다운로드</span>
+          </button>
+          <button class="w-btn-secondary flex items-center justify-center gap-1.5">
+            <i data-lucide="external-link" class="w-4 h-4"></i>
+            <span>ChatGPT로 열기</span>
+          </button>
+          <button class="w-btn-secondary flex items-center justify-center gap-1.5">
+            <i data-lucide="external-link" class="w-4 h-4"></i>
+            <span>Claude로 열기</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="w-divider"></div>
+
+      <!-- Toast preview -->
+      <div class="text-center my-3">
+        <div class="w-toast">
+          <i data-lucide="check-circle" class="w-3 h-3 inline-block mr-1" style="vertical-align: -1px;"></i>
+          Markdown이 클립보드에 복사되었습니다
+        </div>
+      </div>
+    </div>
+
+    <div class="screen-notes">
+      <details open>
+        <summary>Screen Notes</summary>
+        <p><strong>트리거:</strong> "복사" 클릭 직후 (~2초 동안만 노출)</p>
+        <p><strong>인터랙션:</strong></p>
+        <ul>
+          <li>버튼 라벨: "복사" → "복사됨" (아이콘도 copy → check)</li>
+          <li>토스트가 함께 떴다 사라진다 (둘 중 하나만 써도 무방하지만 둘 다 두면 모달 없이 즉시 인지 가능)</li>
+          <li>약 2초 후 자동으로 원래 상태로 복귀</li>
+        </ul>
+        <p><strong>전환:</strong> Result 화면 (변화 없음)</p>
+        <p style="margin-top:8px;"><strong>불변 규칙:</strong> 복사 내용은 항상 순수 Markdown 본문 — 프롬프트는 절대 포함되지 않는다.</p>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- Screen 7: 프롬프트 상태 (프리셋 선택 + 직접 입력)               -->
+<!-- ─────────────────────────────────────────────────────────── -->
+<div id="screen-7" class="screen" data-scenario="scenario-8, scenario-9">
+  <div class="screen-content @container max-w-4xl mx-auto p-6">
+
+    <h2 class="text-lg font-bold mb-5" style="color:var(--w-muted); border-bottom:1px solid var(--w-border); padding-bottom:8px;">
+      프롬프트 상태 — 프리셋 선택 / 직접 입력
+    </h2>
+
+    <!-- 변형 A: 프리셋 선택 -->
+    <div class="text-xs mb-1" style="color:var(--w-muted)">변형 A — "한국어로 번역해줘" 프리셋 선택됨</div>
+    <div class="w-box p-4 mb-5">
+      <div class="w-section-label">프롬프트 (LLM 전달 액션에만 적용)</div>
+      <div class="flex flex-col @md:flex-row @md:flex-wrap gap-3 @md:gap-4">
+        <label class="flex items-center gap-2 cursor-pointer text-sm">
+          <span class="w-radio"></span> 요약해줘
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm font-bold" style="color:var(--w-text)">
+          <span class="w-radio w-checked"></span> 한국어로 번역해줘
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm">
+          <span class="w-radio"></span> 쉽게 설명해줘
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm">
+          <span class="w-radio"></span> 직접 입력
+        </label>
+      </div>
+      <div class="text-xs mt-2" style="color:var(--w-muted)">
+        LLM 액션 시 전달될 텍스트: <code>한국어로 번역해줘\n\n&lt;Markdown 본문&gt;</code>
+      </div>
+    </div>
+
+    <!-- 변형 B: 직접 입력 -->
+    <div class="text-xs mb-1" style="color:var(--w-muted)">변형 B — "직접 입력" 선택 + 텍스트 입력</div>
+    <div class="w-box p-4">
+      <div class="w-section-label">프롬프트 (LLM 전달 액션에만 적용)</div>
+      <div class="flex flex-col @md:flex-row @md:flex-wrap gap-3 @md:gap-4">
+        <label class="flex items-center gap-2 cursor-pointer text-sm">
+          <span class="w-radio"></span> 요약해줘
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm">
+          <span class="w-radio"></span> 한국어로 번역해줘
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm">
+          <span class="w-radio"></span> 쉽게 설명해줘
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm font-bold" style="color:var(--w-text)">
+          <span class="w-radio w-checked"></span> 직접 입력
+        </label>
+      </div>
+      <!-- 펼쳐진 텍스트 인풋 -->
+      <textarea class="w-input mt-3 w-full" rows="2"
+        placeholder="원하는 지시를 입력하세요…">이 글의 핵심 주장을 3개로 정리해줘</textarea>
+      <div class="text-xs mt-2" style="color:var(--w-muted)">
+        LLM 액션 시 전달될 텍스트: <code>이 글의 핵심 주장을 3개로 정리해줘\n\n&lt;Markdown 본문&gt;</code><br>
+        직접 입력 내용은 저장되지 않습니다 — 새로고침 시 비어진 상태로 시작.
+      </div>
+    </div>
+
+    <div class="screen-notes">
+      <details open>
+        <summary>Screen Notes</summary>
+        <p><strong>트리거:</strong> Result 화면에서 사용자가 라디오 옵션을 선택</p>
+        <p><strong>인터랙션:</strong></p>
+        <ul>
+          <li>4개 라디오는 한 번에 하나만 선택. 같은 옵션을 다시 클릭하면 해제 (미선택 가능)</li>
+          <li>"직접 입력" 선택 시 그 아래로 textarea가 펼쳐짐. 다른 옵션 선택 시 textarea는 접힘</li>
+          <li>"복사"·".md 다운로드"는 프롬프트 선택과 무관 (Markdown 본문만)</li>
+        </ul>
+        <p><strong>전환:</strong></p>
+        <ul>
+          <li>LLM "열기" 클릭 → 전달 방식 다이얼로그 (Screen 8)</li>
+          <li>"지우기" → 프롬프트 선택과 직접 입력 모두 초기 상태로 리셋</li>
+        </ul>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- Screen 8: LLM 전달 다이얼로그                                  -->
+<!-- ─────────────────────────────────────────────────────────── -->
+<div id="screen-8" class="screen" data-scenario="scenario-7">
+  <div class="screen-content @container max-w-4xl mx-auto p-6" style="position:relative;">
+
+    <h2 class="text-lg font-bold mb-5" style="color:var(--w-muted); border-bottom:1px solid var(--w-border); padding-bottom:8px;">
+      LLM 다이얼로그 — "ChatGPT로 열기" 클릭 직후
+    </h2>
+
+    <!-- 배경: dimmed result preview -->
+    <div style="opacity:0.4; pointer-events:none;">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <div class="text-base font-bold" style="color:var(--w-text)">URL → Markdown 변환기</div>
+        </div>
+        <button class="w-btn-secondary text-xs">다크모드</button>
+      </div>
+      <div class="w-box p-4 mb-3">
+        <input class="w-input w-full" value="https://example.com/blog/how-react-works" />
+      </div>
+      <div class="w-box p-5">
+        <div class="text-base font-bold mb-1" style="color:var(--w-text)">How React Works</div>
+        <div class="text-xs" style="color:var(--w-muted)">by Dan Abramov</div>
+        <div class="w-divider"></div>
+        <div class="grid grid-cols-2 @md:flex @md:flex-wrap gap-2">
+          <button class="w-btn-secondary">복사</button>
+          <button class="w-btn-secondary">.md 다운로드</button>
+          <button class="w-btn-secondary">ChatGPT로 열기</button>
+          <button class="w-btn-secondary">Claude로 열기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog overlay -->
+    <div class="w-dialog-backdrop">
+      <div class="w-dialog">
+        <div class="text-sm font-bold mb-1" style="color:var(--w-text)">ChatGPT로 열기</div>
+        <div class="text-xs mb-4" style="color:var(--w-muted)">
+          전달할 텍스트 길이에 따라 한쪽이 더 안정적입니다.
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <button class="w-btn-secondary text-left flex items-start gap-2 py-3">
+            <i data-lucide="clipboard-copy" class="w-4 h-4 mt-0.5 shrink-0"></i>
+            <div>
+              <div class="text-sm font-bold" style="color:var(--w-text)">클립보드 복사 후 열기</div>
+              <div class="text-xs mt-0.5" style="color:var(--w-muted)">긴 본문에 적합 · 새 탭에서 ChatGPT 메인을 연 뒤 붙여넣기</div>
+            </div>
+          </button>
+          <button class="w-btn-secondary text-left flex items-start gap-2 py-3">
+            <i data-lucide="link" class="w-4 h-4 mt-0.5 shrink-0"></i>
+            <div>
+              <div class="text-sm font-bold" style="color:var(--w-text)">URL 파라미터로 전달</div>
+              <div class="text-xs mt-0.5" style="color:var(--w-muted)">짧은 본문에 적합 · 새 탭이 텍스트를 쿼리로 담은 URL로 열림</div>
+            </div>
+          </button>
+        </div>
+
+        <div class="flex justify-end mt-4">
+          <button class="w-btn-secondary text-xs">취소</button>
+        </div>
+
+        <div class="w-divider" style="margin: 12px 0;"></div>
+        <div class="text-xs" style="color:var(--w-muted)">
+          전달 텍스트(현재 프리셋: 요약해줘):<br>
+          <code>요약해줘\n\n&lt;Markdown 본문&gt;</code>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen-notes">
+      <details open>
+        <summary>Screen Notes</summary>
+        <p><strong>트리거:</strong> Result 화면에서 "ChatGPT로 열기" 또는 "Claude로 열기" 클릭</p>
+        <p><strong>인터랙션:</strong></p>
+        <ul>
+          <li>두 옵션 중 하나 선택 → 새 탭이 열리며 그 방식대로 텍스트 전달</li>
+          <li>"클립보드 복사 후 열기": 클립보드에 텍스트 담기 + 새 탭이 LLM 메인 페이지</li>
+          <li>"URL 파라미터로 전달": 텍스트를 쿼리에 담은 URL로 새 탭 열기</li>
+          <li>배경 클릭 또는 "취소" → 다이얼로그 닫힘 (Result 화면으로 복귀)</li>
+        </ul>
+        <p><strong>전환:</strong></p>
+        <ul>
+          <li>옵션 선택 후 → 다이얼로그 닫히고 Result 화면 유지 (새 탭이 별도로 열린 상태)</li>
+          <li>취소 → Result 화면</li>
+        </ul>
+        <p style="margin-top:8px;"><strong>불변 규칙:</strong> 전달 텍스트는 두 방식이 동일해야 함. 프롬프트가 없으면 Markdown만(앞 줄바꿈 없음). "Claude로 열기"도 같은 다이얼로그 — 대상 호스트만 다름.</p>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- Screen 9: 다크모드 미리보기                                    -->
+<!-- ─────────────────────────────────────────────────────────── -->
+<div id="screen-9" class="screen" data-scenario="scenario-11">
+  <div class="screen-content @container max-w-4xl mx-auto p-6">
+
+    <h2 class="text-lg font-bold mb-5" style="color:var(--w-muted); border-bottom:1px solid var(--w-border); padding-bottom:8px;">
+      다크모드 — 동일 레이아웃, 다크 팔레트
+    </h2>
+
+    <div class="text-xs mb-4" style="color:var(--w-muted)">
+      구조와 정보 계층은 라이트와 동일. next-themes로 토글 상태가 새로고침 후에도 유지된다.
+    </div>
+
+    <div class="w-dark-preview">
+
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <div class="text-base font-bold">URL → Markdown 변환기</div>
+          <div class="text-xs mt-1">웹 페이지를 본문 Markdown으로 변환합니다</div>
+        </div>
+        <button class="w-btn-secondary flex items-center gap-1.5">
+          <i data-lucide="sun" class="w-4 h-4"></i>
+          <span class="text-xs">라이트모드</span>
+        </button>
+      </div>
+
+      <div class="w-box p-4 mb-3">
+        <div class="w-section-label" style="color:#888 !important;">URL</div>
+        <div class="flex flex-col @md:flex-row gap-2">
+          <input class="w-input flex-1" value="https://example.com/blog/how-react-works" />
+          <div class="flex gap-2">
+            <button class="w-btn-primary flex-1 @md:flex-none">변환</button>
+            <button class="w-btn-secondary flex-1 @md:flex-none">지우기</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="w-box p-5">
+        <div class="text-base font-bold mb-1">How React Works</div>
+        <div class="text-xs">by Dan Abramov</div>
+        <div class="w-divider"></div>
+        <div class="grid grid-cols-2 @md:flex @md:flex-wrap gap-2 mb-4">
+          <button class="w-btn-secondary text-sm">복사</button>
+          <button class="w-btn-secondary text-sm">.md 다운로드</button>
+          <button class="w-btn-secondary text-sm">ChatGPT로 열기</button>
+          <button class="w-btn-secondary text-sm">Claude로 열기</button>
+        </div>
+        <div class="w-md-block">
+          # How React Works<br>
+          <br>
+          React is a JavaScript library for building user interfaces…
+        </div>
+      </div>
+    </div>
+
+    <div class="screen-notes">
+      <details open>
+        <summary>Screen Notes</summary>
+        <p><strong>트리거:</strong> 사용자가 우측 상단 다크모드 토글 클릭</p>
+        <p><strong>인터랙션:</strong></p>
+        <ul>
+          <li>토글 라벨이 "다크모드 ↔ 라이트모드"로 전환, 아이콘은 moon ↔ sun</li>
+          <li>전체 팔레트(배경/텍스트/박스)가 다크로 전환되지만 레이아웃·간격은 불변</li>
+          <li>next-themes로 상태가 localStorage에 저장되어 새로고침 후에도 유지</li>
+        </ul>
+        <p><strong>전환:</strong> 같은 화면 (테마만 다름)</p>
+        <p style="margin-top:8px;"><strong>참고:</strong> 와이어프레임은 5색 팔레트라 다크 미리보기는 별도 영역으로 보여줌. 실제 구현은 OKLCH 토큰 + next-themes provider.</p>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var currentScreen = 0;
+var screenIds = [];
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('screen-' + id).classList.add('active');
+  document.querySelectorAll('nav button[id^="nav-"]').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('nav-' + id).classList.add('active');
+  currentScreen = screenIds.indexOf(id);
+}
+
+function setViewport(mode) {
+  document.body.classList.remove('viewport-mobile', 'viewport-desktop');
+  document.body.classList.add('viewport-' + mode);
+  document.querySelectorAll('.vp-toggle button').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('vp-' + mode).classList.add('active');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('nav button[id^="nav-"]').forEach(function(b) {
+    screenIds.push(parseInt(b.id.replace('nav-', '')));
+  });
+  var first = document.querySelector('nav button[id^="nav-"]');
+  if (first) first.click();
+  lucide.createIcons();
+});
+</script>
+</body>
+</html>

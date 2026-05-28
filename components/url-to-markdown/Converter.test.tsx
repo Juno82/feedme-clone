@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Toaster } from "@/components/ui/sonner";
 import { Converter } from "./Converter";
 import type { ConvertResponse } from "@/types/conversion";
 
@@ -190,6 +191,74 @@ describe("Converter", () => {
       ).toBeInTheDocument();
     });
     expect(screen.queryByText(/^by /)).not.toBeInTheDocument();
+  });
+
+  it("copies the markdown body (only) to the clipboard and shows a toast", async () => {
+    const successResult = makeSuccess({
+      markdown: "# Title\n\nBody.",
+    });
+    mockedConvertUrl.mockResolvedValue(successResult);
+
+    const user = userEvent.setup();
+    const writeText = vi
+      .spyOn(window.navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+
+    render(
+      <>
+        <Converter />
+        <Toaster />
+      </>
+    );
+
+    await user.type(
+      screen.getByPlaceholderText(/https:\/\/example\.com/),
+      "https://example.com/article"
+    );
+    await user.click(screen.getByRole("button", { name: "변환" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "복사" })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: "복사" }));
+
+    expect(writeText).toHaveBeenCalledWith("# Title\n\nBody.");
+    await waitFor(() => {
+      expect(screen.getByText(/Markdown이 복사되었습니다/)).toBeInTheDocument();
+    });
+  });
+
+  it("creates a blob with the markdown body when downloading", async () => {
+    const successResult = makeSuccess({
+      title: "How React Works",
+      markdown: "# Hello\n\nWorld.",
+    });
+    mockedConvertUrl.mockResolvedValue(successResult);
+
+    const createObjectURL = vi.fn(() => "blob:fake");
+    const revokeObjectURL = vi.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+
+    const user = userEvent.setup();
+    render(<Converter />);
+
+    await user.type(
+      screen.getByPlaceholderText(/https:\/\/example\.com/),
+      "https://example.com/article"
+    );
+    await user.click(screen.getByRole("button", { name: "변환" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /\.md 다운로드/ })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: /\.md 다운로드/ }));
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.type).toMatch(/markdown/);
+    const text = await blob.text();
+    expect(text).toBe("# Hello\n\nWorld.");
   });
 
   it("renders the four action buttons after a successful conversion", async () => {

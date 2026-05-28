@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -22,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { convertUrl } from "@/services/convertUrl";
 import { isValidHttpUrl } from "@/lib/urlValidation";
+import { deriveFilename } from "@/lib/filename";
 import {
   isConvertError,
   type ConvertError,
@@ -145,6 +147,25 @@ export function Converter() {
 
 function ResultPanel({ result }: { result: ConvertSuccess }) {
   const headerTitle = result.title?.trim() || result.url;
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(result.markdown);
+    toast.success("Markdown이 복사되었습니다");
+  }
+
+  function handleDownload() {
+    const filename = deriveFilename(result.title, result.url);
+    const blob = new Blob([result.markdown], { type: "text/markdown;charset=utf-8" });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+  }
+
   return (
     <Card>
       <CardContent className="flex flex-col gap-4">
@@ -160,11 +181,11 @@ function ResultPanel({ result }: { result: ConvertSuccess }) {
         <Separator />
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm">
+          <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
             <HugeiconsIcon icon={Copy01Icon} data-icon="inline-start" />
             복사
           </Button>
-          <Button type="button" variant="outline" size="sm">
+          <Button type="button" variant="outline" size="sm" onClick={handleDownload}>
             <HugeiconsIcon icon={Download01Icon} data-icon="inline-start" />
             .md 다운로드
           </Button>
