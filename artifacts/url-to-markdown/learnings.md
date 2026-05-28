@@ -12,7 +12,7 @@ applied: discarded
 
 ---
 category: tooling
-applied: rule
+applied: not-yet
 ---
 ## Vitest와 Playwright가 같은 디렉토리 패턴을 두고 충돌
 
@@ -42,7 +42,7 @@ applied: not-yet
 
 ---
 category: spec-ambiguity
-applied: rule
+applied: not-yet
 ---
 ## URL fallback 파일명은 host의 `.` 을 보존해야 함
 
@@ -62,7 +62,7 @@ applied: not-yet
 
 ---
 category: code-review
-applied: rule
+applied: not-yet
 ---
 ## 임의 URL을 서버에서 fetch 하면 SSRF 표면이 열린다
 
@@ -72,7 +72,7 @@ applied: rule
 
 ---
 category: code-review
-applied: rule
+applied: not-yet
 ---
 ## clipboard.writeText 는 항상 reject 가능 — 반드시 try/catch
 
