@@ -27,4 +27,14 @@ describe("extractFromHtml", () => {
     expect(result.markdown).toMatch(/Commit Phase/);
     expect(result.markdown.length).toBeGreaterThan(50);
   });
+
+  it("returns undefined title and author when the page has no metadata", async () => {
+    const html = await readFixture("no-meta.html");
+    const result = await extractFromHtml(html, "https://example.com/anon");
+
+    expect(result.title).toBeUndefined();
+    expect(result.author).toBeUndefined();
+    expect(result.markdown.length).toBeGreaterThan(50);
+    expect(result.url).toBe("https://example.com/anon");
+  });
 });

@@ -152,6 +152,46 @@ describe("Converter", () => {
     });
   });
 
+  it("falls back to the source URL when the page has no title", async () => {
+    mockedConvertUrl.mockResolvedValue(
+      makeSuccess({ title: undefined, author: "Anonymous" })
+    );
+    const user = userEvent.setup();
+    render(<Converter />);
+
+    await user.type(
+      screen.getByPlaceholderText(/https:\/\/example\.com/),
+      "https://example.com/article"
+    );
+    await user.click(screen.getByRole("button", { name: "변환" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { level: 2, name: "https://example.com/article" })
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText("by Anonymous")).toBeInTheDocument();
+  });
+
+  it("omits the author line when author is missing", async () => {
+    mockedConvertUrl.mockResolvedValue(makeSuccess({ author: undefined }));
+    const user = userEvent.setup();
+    render(<Converter />);
+
+    await user.type(
+      screen.getByPlaceholderText(/https:\/\/example\.com/),
+      "https://example.com/article"
+    );
+    await user.click(screen.getByRole("button", { name: "변환" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { level: 2, name: "How React Works" })
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/^by /)).not.toBeInTheDocument();
+  });
+
   it("renders the four action buttons after a successful conversion", async () => {
     mockedConvertUrl.mockResolvedValue(makeSuccess());
     const user = userEvent.setup();

@@ -144,11 +144,14 @@ export function Converter() {
 }
 
 function ResultPanel({ result }: { result: ConvertSuccess }) {
+  const headerTitle = result.title?.trim() || result.url;
   return (
     <Card>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h2 className="font-heading text-lg font-semibold">{result.title}</h2>
+          <h2 className="font-heading text-lg font-semibold break-words">
+            {headerTitle}
+          </h2>
           {result.author && (
             <p className="text-sm text-muted-foreground">by {result.author}</p>
           )}
