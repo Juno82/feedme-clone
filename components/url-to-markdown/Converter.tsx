@@ -30,7 +30,9 @@ import {
   type ConvertSuccess,
 } from "@/types/conversion";
 import { INITIAL_PROMPT_STATE, type PromptState } from "@/types/prompt";
+import { buildTransferText, type LLMHost } from "@/lib/llmTransfer";
 import { PromptSelector } from "./PromptSelector";
+import { LLMDialog } from "./LLMDialog";
 
 export function Converter() {
   const [url, setUrl] = useState("");
@@ -162,6 +164,8 @@ interface ResultPanelProps {
 
 function ResultPanel({ result, promptState, onPromptChange }: ResultPanelProps) {
   const headerTitle = result.title?.trim() || result.url;
+  const [dialogHost, setDialogHost] = useState<LLMHost | null>(null);
+  const transferText = buildTransferText(promptState, result.markdown);
 
   async function handleCopy() {
     await navigator.clipboard.writeText(result.markdown);
@@ -204,15 +208,36 @@ function ResultPanel({ result, promptState, onPromptChange }: ResultPanelProps) 
             <HugeiconsIcon icon={Download01Icon} data-icon="inline-start" />
             .md 다운로드
           </Button>
-          <Button type="button" variant="outline" size="sm">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setDialogHost("chatgpt")}
+          >
             <HugeiconsIcon icon={ArrowUpRight01Icon} data-icon="inline-start" />
             ChatGPT로 열기
           </Button>
-          <Button type="button" variant="outline" size="sm">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setDialogHost("claude")}
+          >
             <HugeiconsIcon icon={ArrowUpRight01Icon} data-icon="inline-start" />
             Claude로 열기
           </Button>
         </div>
+
+        {dialogHost && (
+          <LLMDialog
+            host={dialogHost}
+            transferText={transferText}
+            open
+            onOpenChange={(open) => {
+              if (!open) setDialogHost(null);
+            }}
+          />
+        )}
 
         <Separator />
 
